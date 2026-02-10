@@ -4,6 +4,7 @@ const path = require('path');
 const {
   uploadAttendanceSheet,
   getTodayAttendance,
+  getMyAttendance,
   getAttendanceByDateRange,
   getMonthlyAttendance,
   getEmployeeAttendance,
@@ -41,6 +42,7 @@ const upload = multer({
 // Routes
 router.post('/upload', auth, adminAuth, upload.single('file'), uploadAttendanceSheet);
 router.get('/today', auth, getTodayAttendance);
+router.get('/my-attendance', auth, getMyAttendance);
 router.get('/by-date-range', auth, getAttendanceByDateRange);
 router.get('/monthly', auth, getMonthlyAttendance);
 router.get('/employee/:employeeId', auth, adminAuth, getEmployeeAttendance);

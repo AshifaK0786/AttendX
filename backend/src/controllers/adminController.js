@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const Attendance = require('../models/Attendance');
+const Salary = require('../models/Salary');
 
 // Get all employees
 const getAllEmployees = async (req, res) => {
@@ -35,6 +36,143 @@ const getAllAttendanceRecords = async (req, res) => {
 
     const attendance = await Attendance.find(query).sort({ date: -1 });
     res.json(attendance);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Mark attendance manually
+const markAttendance = async (req, res) => {
+  try {
+    const { employee_id, date, status, in_time, out_time } = req.body;
+
+    if (!employee_id || !date || !status) {
+      return res.status(400).json({
+        message: 'employee_id, date, and status are required',
+      });
+    }
+
+    // Verify employee exists
+    const employee = await User.findOne({ employee_id });
+    if (!employee) {
+      return res.status(404).json({ message: 'Employee not found' });
+    }
+
+    // Check for duplicate attendance
+    const existingAttendance = await Attendance.findOne({
+      employee_id,
+      date,
+    });
+
+    const attendanceData = {
+      employee_id,
+      name: employee.name,
+      date,
+      status,
+      in_time: in_time || '',
+      out_time: out_time || '',
+    };
+
+    if (existingAttendance) {
+      await Attendance.updateOne(
+        { employee_id, date },
+        attendanceData
+      );
+      return res.json({
+        message: 'Attendance updated successfully',
+        attendance: attendanceData,
+      });
+    }
+
+    const attendance = await Attendance.create(attendanceData);
+
+    res.status(201).json({
+      message: 'Attendance marked successfully',
+      attendance,
+    });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+// Configure salary for an employee
+const configureSalary = async (req, res) => {
+  try {
+    const { employeeId } = req.params;
+    const { salaryPerDay, overtimeRate, bonus, penalties, advanceDeduction } = req.body;
+
+    // Verify employee exists
+    const employee = await User.findById(employeeId);
+    if (!employee) {
+      return res.status(404).json({ message: 'Employee not found' });
+    }
+
+    // Update employee salary per day
+    if (salaryPerDay !== undefined) {
+      employee.salaryPerDay = salaryPerDay;
+      await employee.save();
+    }
+
+    // Update current month's salary record (if exists)
+    const today = new Date();
+    const month = today.getMonth() + 1;
+    const year = today.getFullYear();
+
+    const salaryRecord = await Salary.findOne({
+      employee_id: employee.employee_id,
+      month,
+      year,
+    });
+
+    if (salaryRecord) {
+      if (overtimeRate !== undefined) salaryRecord.overtimeRate = overtimeRate;
+      if (bonus !== undefined) salaryRecord.bonus = bonus;
+      if (penalties !== undefined) salaryRecord.penalties = penalties;
+      if (advanceDeduction !== undefined) salaryRecord.advanceDeduction = advanceDeduction;
+
+      // Recalculate net salary
+      salaryRecord.totalDeductions = 
+        salaryRecord.insuranceDeduction + 
+        salaryRecord.penalties + 
+        salaryRecord.advanceDeduction;
+      salaryRecord.netSalary = 
+        salaryRecord.grossSalary + 
+        salaryRecord.bonus - 
+        salaryRecord.totalDeductions;
+
+      await salaryRecord.save();
+    }
+
+    res.json({
+      message: 'Salary configured successfully',
+      employee,
+    });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+// Get salary details for an employee for a specific month
+const getEmployeeSalaryDetails = async (req, res) => {
+  try {
+    const { employeeId } = req.params;
+    const { month, year } = req.query;
+
+    if (!month || !year) {
+      return res.status(400).json({ message: 'Month and year are required' });
+    }
+
+    const salary = await Salary.findOne({
+      employee_id: employeeId,
+      month: parseInt(month),
+      year: parseInt(year),
+    });
+
+    if (!salary) {
+      return res.status(404).json({ message: 'Salary record not found' });
+    }
+
+    res.json(salary);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -157,6 +295,9 @@ const updateAttendanceRecord = async (req, res) => {
 module.exports = {
   getAllEmployees,
   getAllAttendanceRecords,
+  markAttendance,
+  configureSalary,
+  getEmployeeSalaryDetails,
   updateAttendanceRecord,
   addEmployee,
   updateEmployee,

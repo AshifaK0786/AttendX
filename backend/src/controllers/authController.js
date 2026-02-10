@@ -1,6 +1,5 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
 
 const login = async (req, res) => {
   try {
@@ -60,20 +59,21 @@ const register = async (req, res) => {
       });
     }
 
-    // Hash password
-    console.log('🔐 Hashing password...');
-    const hashedPassword = await bcrypt.hash(password, 10);
-    
     console.log('👤 Creating new user...');
     const user = new User({ 
       employee_id, 
       name, 
-      password: hashedPassword,  // Store hashed password
+      password,
       role 
     });
     
     console.log('💾 Saving user to database...');
-    await user.save();
+    try {
+      await user.save();
+    } catch (saveError) {
+      console.error('❌ Mongoose Save Error:', saveError);
+      throw saveError;
+    }
     console.log('✅ User saved successfully!');
     res.status(201).json({ message: 'User created successfully' });
   } catch (error) {

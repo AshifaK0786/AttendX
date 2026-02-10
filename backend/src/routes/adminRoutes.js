@@ -6,6 +6,9 @@ const {
   addEmployee,
   updateEmployee,
   deleteEmployee,
+  markAttendance,
+  configureSalary,
+  getEmployeeSalaryDetails,
 } = require('../controllers/adminController');
 const { auth, adminAuth } = require('../middleware/authMiddleware');
 
@@ -25,6 +28,12 @@ router.delete('/employees/:employeeId', deleteEmployee);
 
 // Attendance records
 router.get('/attendance', getAllAttendanceRecords);
+router.post('/attendance', markAttendance);
 router.put('/attendance/:id', updateAttendanceRecord);
 
+// Salary configuration & details
+router.post('/salary/configure/:employeeId', configureSalary);
+router.get('/salary/:employeeId', getEmployeeSalaryDetails);
+
 module.exports = router;
+

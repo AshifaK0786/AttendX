@@ -4,6 +4,50 @@ const XLSX = require('xlsx');
 const fs = require('fs');
 const path = require('path');
 
+const HEADER_ALIASES = {
+  employeeId: ['Employee ID', 'Employee Id', 'Emp ID', 'Emp Id'],
+  employeeName: ['Employee Name', 'Name', 'Employee'],
+  date: ['Date', 'Attendance Date'],
+  inTime: ['In Time', 'InTime', 'Check In', 'In'],
+  outTime: ['Out Time', 'OutTime', 'Check Out', 'Out'],
+  status: ['Attendance Status', 'Status'],
+};
+
+const getRowValue = (row, keys) => {
+  for (const key of keys) {
+    if (row[key] !== undefined && row[key] !== null && row[key] !== '') {
+      return row[key];
+    }
+  }
+  return '';
+};
+
+const normalizeStatus = (value) => {
+  if (!value) return '';
+  const normalized = String(value).trim().toLowerCase();
+  if (normalized.includes('present')) return 'Present';
+  if (normalized.includes('absent')) return 'Absent';
+  if (normalized.includes('incomplete') || normalized.includes('missing')) return 'Incomplete';
+  if (normalized.includes('late')) return 'Late';
+  if (normalized.includes('half')) return 'Half Day';
+  return '';
+};
+
+const normalizeDate = (raw) => {
+  if (!raw) return '';
+  if (typeof raw === 'number') {
+    const excelDate = new Date((raw - 25569) * 86400 * 1000);
+    return excelDate.toISOString().split('T')[0];
+  }
+
+  const parsed = new Date(raw);
+  if (!isNaN(parsed)) {
+    return parsed.toISOString().split('T')[0];
+  }
+
+  return '';
+};
+
 // Upload and process attendance sheet
 const uploadAttendanceSheet = async (req, res) => {
   try {
@@ -22,6 +66,27 @@ const uploadAttendanceSheet = async (req, res) => {
       return res.status(400).json({ message: 'No data found in file' });
     }
 
+    const firstRow = data[0] || {};
+    const missingHeaders = [];
+
+    if (!HEADER_ALIASES.employeeId.some((key) => key in firstRow)) {
+      missingHeaders.push('Employee ID');
+    }
+    if (!HEADER_ALIASES.employeeName.some((key) => key in firstRow)) {
+      missingHeaders.push('Employee Name');
+    }
+    if (!HEADER_ALIASES.date.some((key) => key in firstRow)) {
+      missingHeaders.push('Date');
+    }
+
+    if (missingHeaders.length > 0) {
+      fs.unlinkSync(filePath);
+      return res.status(400).json({
+        message: 'Invalid sheet structure',
+        missingHeaders,
+      });
+    }
+
     const results = [];
     let successCount = 0;
     let errorCount = 0;
@@ -29,8 +94,15 @@ const uploadAttendanceSheet = async (req, res) => {
     // Process each row
     for (const row of data) {
       try {
-        // Ensure employee_id exists
-        if (!row['Employee ID'] || !row['Date']) {
+        const employeeIdValue = getRowValue(row, HEADER_ALIASES.employeeId);
+        const employeeNameValue = getRowValue(row, HEADER_ALIASES.employeeName);
+        const dateValue = getRowValue(row, HEADER_ALIASES.date);
+        const inTimeValue = getRowValue(row, HEADER_ALIASES.inTime);
+        const outTimeValue = getRowValue(row, HEADER_ALIASES.outTime);
+        const statusValue = getRowValue(row, HEADER_ALIASES.status);
+
+        // Ensure required fields exist
+        if (!employeeIdValue || !dateValue) {
           errorCount++;
           results.push({
             row: row,
@@ -40,27 +112,55 @@ const uploadAttendanceSheet = async (req, res) => {
           continue;
         }
 
+        // Validate Employee_ID exists in database
+        const employeeExists = await User.findOne({ employee_id: String(employeeIdValue).trim() });
+        if (!employeeExists) {
+          errorCount++;
+          results.push({
+            employee_id: employeeIdValue,
+            status: 'error',
+            message: 'Employee ID not found in database - row ignored',
+          });
+          continue;
+        }
+
         // Format date to YYYY-MM-DD
-        let dateStr = row['Date'];
-        if (typeof dateStr === 'number') {
-          // Excel date number
-          const excelDate = new Date((dateStr - 25569) * 86400 * 1000);
-          dateStr = excelDate.toISOString().split('T')[0];
-        } else if (typeof dateStr === 'string') {
-          // Try to parse string date
-          const parsed = new Date(dateStr);
-          if (!isNaN(parsed)) {
-            dateStr = parsed.toISOString().split('T')[0];
+        const dateStr = normalizeDate(dateValue);
+        if (!dateStr) {
+          errorCount++;
+          results.push({
+            row: row,
+            status: 'error',
+            message: 'Invalid Date format',
+          });
+          continue;
+        }
+
+        const hasInTime = String(inTimeValue || '').trim() !== '';
+        const hasOutTime = String(outTimeValue || '').trim() !== '';
+        let status = normalizeStatus(statusValue);
+
+        if (!status) {
+          if (hasInTime && !hasOutTime) {
+            status = 'Incomplete';
+          } else if (!hasInTime && !hasOutTime) {
+            status = 'Absent';
+          } else {
+            status = 'Present';
           }
         }
 
+        if (hasInTime && !hasOutTime && status !== 'Absent') {
+          status = 'Incomplete';
+        }
+
         const attendanceRecord = {
-          employee_id: String(row['Employee ID']).trim(),
-          name: row['Name'] || '',
+          employee_id: String(employeeIdValue).trim(),
+          name: employeeExists.name, // Use name from database, not from Excel
           date: dateStr,
-          in_time: row['In Time'] || '',
-          out_time: row['Out Time'] || '',
-          status: row['Status'] || 'Present',
+          in_time: inTimeValue || '',
+          out_time: outTimeValue || '',
+          status,
         };
 
         // Upsert attendance record
@@ -157,6 +257,19 @@ const getAttendanceByDateRange = async (req, res) => {
   }
 };
 
+// Get all attendance for current employee
+const getMyAttendance = async (req, res) => {
+  try {
+    const attendance = await Attendance.find({
+      employee_id: req.user.employee_id,
+    }).sort({ date: -1 });
+
+    res.json(attendance);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // Get monthly attendance
 const getMonthlyAttendance = async (req, res) => {
   try {
@@ -221,6 +334,7 @@ module.exports = {
   getTodayAttendance,
   getAttendanceByDateRange,
   getMonthlyAttendance,
+  getMyAttendance,
   getEmployeeAttendance,
   getAllAttendance,
 };

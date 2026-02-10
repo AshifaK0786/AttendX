@@ -20,10 +20,14 @@ mongoose.connect(process.env.MONGODB_URI)
 const authRoutes = require('./src/routes/authRoutes');
 const attendanceRoutes = require('./src/routes/attendanceRoutes');
 const adminRoutes = require('./src/routes/adminRoutes');
+const salaryRoutes = require('./src/routes/salaryRoutes');
+const licPolicyRoutes = require('./src/routes/licPolicyRoutes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/salary', salaryRoutes);
+app.use('/api/lic-policy', licPolicyRoutes);
 
 // Basic Route
 app.get('/', (req, res) => {
