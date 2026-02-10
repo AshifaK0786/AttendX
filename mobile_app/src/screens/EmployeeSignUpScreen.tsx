@@ -67,27 +67,23 @@ export default function EmployeeSignUpScreen() {
     setLoading(true);
     try {
       console.log('🟢 Sending employee signup request...');
-      // Attempt registration but don't stop on failure
-      try {
-        await authService.register({
-          employee_id: formData.employee_id.trim(),
-          name: formData.name.trim(),
-          password: formData.password,
-          role: 'employee',
-        });
-        console.log('✅ Employee signup successful (or at least attempt finished)');
-      } catch (regError) {
-        console.log('⚠️ Signup attempt failed, but continuing to dashboard anyway');
-      }
 
-      // Automatically login the user (our modified login always succeeds)
+      // Register the employee account; if it fails, show the error and stop
+      await authService.register({
+        employee_id: formData.employee_id.trim(),
+        name: formData.name.trim(),
+        password: formData.password,
+        role: 'employee',
+      });
+      console.log('✅ Employee signup successful');
+
+      // Now log the user in and navigate to employee dashboard
       await login(formData.employee_id.trim(), formData.password);
-      console.log('✅ Auto-login complete, navigating to dashboard...');
-      
+      console.log('✅ Auto-login complete, navigating to employee dashboard...');
+      navigation.reset({ index: 0, routes: [{ name: 'EmployeeDashboard' as any }] });
     } catch (error: any) {
       console.error('❌ Unexpected error during signup flow:', error);
-      // Even on unexpected error, we try to login with whatever we have
-      await login(formData.employee_id.trim(), formData.password);
+      Alert.alert('Registration Error', error.message || 'An unexpected error occurred');
     } finally {
       setLoading(false);
     }

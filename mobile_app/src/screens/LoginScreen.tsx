@@ -29,26 +29,9 @@ const LoginScreen = () => {
 
     setLoading(true);
     try {
-      console.log('🔵 Attempting login with:', employee_id);
       await login(employee_id, password);
-      console.log('✅ Login flow finished');
     } catch (error: any) {
-      console.error('❌ Unexpected error:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const quickLogin = async (empId: string, pass: string) => {
-    setEmployeeId(empId);
-    setPassword(pass);
-    setLoading(true);
-    try {
-      console.log('🚀 Quick login with:', empId);
-      await login(empId, pass);
-      console.log('✅ Quick login flow finished');
-    } catch (error: any) {
-      console.error('❌ Quick login unexpected error:', error);
+      Alert.alert('Login Failed', error?.message || 'Invalid credentials');
     } finally {
       setLoading(false);
     }
@@ -122,10 +105,6 @@ const LoginScreen = () => {
               <Text style={styles.signUpLink}>Employee Sign Up</Text>
             </TouchableOpacity>
           </View>
-
-          <Text style={styles.infoText}>
-            👤 For testing, use employee ID: ADMIN001, password: admin123
-          </Text>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -226,12 +205,6 @@ const styles = StyleSheet.create({
     color: '#3498db',
     fontWeight: '600',
     marginBottom: 8,
-  },
-  infoText: {
-    textAlign: 'center',
-    marginTop: 20,
-    color: '#7f8c8d',
-    fontSize: 11,
   },
 });
 

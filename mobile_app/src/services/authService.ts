@@ -31,7 +31,7 @@ export const attendanceService = {
 
 export const adminService = {
   uploadAttendanceSheet: (formData: FormData) =>
-    api.post('/admin/upload', formData, {
+    api.post('/attendance/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
 

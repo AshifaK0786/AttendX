@@ -17,113 +17,134 @@ const EmployeeDetails = () => {
   const route = useRoute();
   const { record } = route.params as { record: any };
 
-  const [status, setStatus] = useState(record.status);
-  const [inTime, setInTime] = useState(record.in_time);
-  const [outTime, setOutTime] = useState(record.out_time);
   const [loading, setLoading] = useState(false);
 
-  const handleUpdate = async () => {
-    try {
-      setLoading(true);
-      await api.put(`/admin/attendance/${record._id}`, {
-        status,
-        in_time: inTime,
-        out_time: outTime,
-      });
-      Alert.alert('Success', 'Attendance record updated successfully');
-      navigation.goBack();
-    } catch (error: any) {
-      console.error(error);
-      Alert.alert('Error', error.response?.data?.message || 'Failed to update record');
-    } finally {
-      setLoading(false);
-    }
+  const handleConfigueSalary = () => {
+    navigation.navigate('AdminSalaryConfig' as any, { employee: record });
   };
 
-  const statuses = ['Present', 'Absent', 'Late', 'Half Day'];
+  const handleAssignInsurance = () => {
+    navigation.navigate('AdminInsuranceAssign' as any, { employee: record });
+  };
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Text style={styles.backButtonText}>← Back</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Edit Attendance</Text>
+        <Text style={styles.headerTitle}>Employee Management</Text>
         <View style={{ width: 60 }} />
       </View>
 
       <View style={styles.content}>
+        {/* Employee Card */}
         <View style={styles.employeeCard}>
           <Text style={styles.avatarEmoji}>👷</Text>
           <View>
             <Text style={styles.employeeName}>{record.name}</Text>
-            <Text style={styles.employeeId}>Employee ID: {record.employee_id}</Text>
-            <Text style={styles.recordDate}>Date: {record.date}</Text>
+            <Text style={styles.employeeId}>ID: {record.employee_id}</Text>
+            <Text style={styles.employeeRole}>{record.role}</Text>
           </View>
         </View>
 
-        <View style={styles.form}>
-          <Text style={styles.label}>Status</Text>
-          <View style={styles.statusContainer}>
-            {statuses.map((s) => (
-              <TouchableOpacity
-                key={s}
-                style={[
-                  styles.statusOption,
-                  status === s && styles.selectedStatus,
-                  { borderColor: getStatusColor(s) }
-                ]}
-                onPress={() => setStatus(s)}
-              >
-                <Text style={[
-                  styles.statusOptionText,
-                  status === s && styles.selectedStatusText
-                ]}>{s}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <Text style={styles.label}>In Time</Text>
-          <TextInput
-            style={styles.input}
-            value={inTime}
-            onChangeText={setInTime}
-            placeholder="e.g. 09:00 AM"
-          />
-
-          <Text style={styles.label}>Out Time</Text>
-          <TextInput
-            style={styles.input}
-            value={outTime}
-            onChangeText={setOutTime}
-            placeholder="e.g. 06:00 PM"
-          />
-
-          <TouchableOpacity
-            style={[styles.saveButton, loading && styles.disabledButton]}
-            onPress={handleUpdate}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.saveButtonText}>Save Changes</Text>
+        {/* Employee Information */}
+        <View style={styles.infoSection}>
+          <Text style={styles.sectionTitle}>📋 Employee Information</Text>
+          <View style={[styles.infoCard, { gap: 15 }]}>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Employee ID:</Text>
+              <Text style={styles.infoValue}>{record.employee_id}</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Name:</Text>
+              <Text style={styles.infoValue}>{record.name}</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Role:</Text>
+              <Text style={styles.infoValue}>{record.role}</Text>
+            </View>
+            {record.salaryPerDay !== undefined && (
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Salary/Day:</Text>
+                <Text style={styles.infoValue}>₹{record.salaryPerDay}</Text>
+              </View>
             )}
+          </View>
+        </View>
+
+        {/* Admin Actions */}
+        <View style={styles.actionsSection}>
+          <Text style={styles.sectionTitle}>⚙️ Administrative Actions</Text>
+
+          {/* Salary Configuration Button */}
+          <TouchableOpacity
+            style={[styles.actionCard, styles.salaryCard]}
+            onPress={handleConfigueSalary}
+          >
+            <View style={styles.actionCardContent}>
+              <Text style={styles.actionIcon}>💰</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.actionTitle}>Configure Salary</Text>
+                <Text style={styles.actionDescription}>
+                  Set overtime rate, bonus, penalties, advance
+                </Text>
+              </View>
+            </View>
+            <Text style={styles.actionArrow}>→</Text>
           </TouchableOpacity>
+
+          {/* Insurance Assignment Button */}
+          <TouchableOpacity
+            style={[styles.actionCard, styles.insuranceCard]}
+            onPress={handleAssignInsurance}
+          >
+            <View style={styles.actionCardContent}>
+              <Text style={styles.actionIcon}>🛡️</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.actionTitle}>Assign Insurance</Text>
+                <Text style={styles.actionDescription}>
+                  Assign LIC or health insurance policy
+                </Text>
+              </View>
+            </View>
+            <Text style={styles.actionArrow}>→</Text>
+          </TouchableOpacity>
+
+          {/* View Attendance Button */}
+          <TouchableOpacity
+            style={[styles.actionCard, styles.attendanceCard]}
+            onPress={() => Alert.alert('Coming Soon', 'View attendance records for this employee')}
+          >
+            <View style={styles.actionCardContent}>
+              <Text style={styles.actionIcon}>📅</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.actionTitle}>View Attendance</Text>
+                <Text style={styles.actionDescription}>
+                  Check attendance records and statistics
+                </Text>
+              </View>
+            </View>
+            <Text style={styles.actionArrow}>→</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Info Box */}
+        <View style={styles.infoBox}>
+          <Text style={styles.infoBoxTitle}>ℹ️ Quick Tips</Text>
+          <Text style={styles.infoBoxText}>
+            • Configure salary details before calculating monthly salaries
+          </Text>
+          <Text style={styles.infoBoxText}>
+            • Insurance premiums are deducted from the net salary
+          </Text>
+          <Text style={styles.infoBoxText}>
+            • Changes take effect from the next salary calculation
+          </Text>
         </View>
       </View>
     </ScrollView>
   );
-};
-
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'Present': return '#4caf50';
-    case 'Absent': return '#f44336';
-    case 'Late': return '#ff9800';
-    case 'Half Day': return '#ffc107';
-    default: return '#999';
-  }
 };
 
 const styles = StyleSheet.create({
@@ -177,7 +198,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f0f0',
     padding: 10,
     borderRadius: 30,
-    overflow: 'hidden',
   },
   employeeName: {
     fontSize: 20,
@@ -189,77 +209,118 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 4,
   },
-  recordDate: {
-    fontSize: 14,
-    color: '#1a73e8',
-    fontWeight: '600',
-    marginTop: 4,
-  },
-  form: {
-    backgroundColor: '#fff',
-    padding: 20,
-    borderRadius: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#444',
-    marginBottom: 8,
-    marginTop: 15,
-  },
-  statusContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 10,
-  },
-  statusOption: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    minWidth: 80,
-    alignItems: 'center',
-  },
-  selectedStatus: {
-    backgroundColor: '#1a73e8',
-    borderColor: '#1a73e8',
-  },
-  statusOptionText: {
+  employeeRole: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#666',
+    color: '#999',
+    marginTop: 2,
+    fontWeight: '500',
   },
-  selectedStatusText: {
-    color: '#fff',
+  infoSection: {
+    marginBottom: 25,
   },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    color: '#1a1a1a',
-  },
-  saveButton: {
-    backgroundColor: '#1a73e8',
-    padding: 15,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginTop: 30,
-  },
-  disabledButton: {
-    opacity: 0.7,
-  },
-  saveButtonText: {
-    color: '#fff',
+  sectionTitle: {
     fontSize: 16,
     fontWeight: 'bold',
+    color: '#1a1a1a',
+    marginBottom: 12,
+  },
+  infoCard: {
+    backgroundColor: '#fff',
+    padding: 15,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  infoLabel: {
+    fontSize: 13,
+    color: '#666',
+    fontWeight: '500',
+  },
+  infoValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1a1a1a',
+  },
+  actionsSection: {
+    marginBottom: 25,
+  },
+  actionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#fff',
+    padding: 15,
+    borderRadius: 12,
+    marginBottom: 10,
+    borderLeftWidth: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  salaryCard: {
+    borderLeftColor: '#34a853',
+  },
+  insuranceCard: {
+    borderLeftColor: '#ff6b6b',
+  },
+  attendanceCard: {
+    borderLeftColor: '#2196F3',
+  },
+  actionCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 12,
+  },
+  actionIcon: {
+    fontSize: 24,
+  },
+  actionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1a1a1a',
+  },
+  actionDescription: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
+  },
+  actionArrow: {
+    fontSize: 18,
+    color: '#999',
+  },
+  infoBox: {
+    backgroundColor: '#f0f7ff',
+    borderWidth: 1,
+    borderColor: '#bbdefb',
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 30,
+  },
+  infoBoxTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1565c0',
+    marginBottom: 8,
+  },
+  infoBoxText: {
+    fontSize: 12,
+    color: '#1565c0',
+    lineHeight: 18,
+    marginBottom: 5,
   },
 });
 

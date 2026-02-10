@@ -67,27 +67,25 @@ export default function AdminSignUpScreen() {
     setLoading(true);
     try {
       console.log('🔵 Sending admin signup request...');
-      // Attempt registration but don't stop on failure
-      try {
-        await authService.register({
-          employee_id: formData.employee_id.trim(),
-          name: formData.name.trim(),
-          password: formData.password,
-          role: 'admin',
-        });
-        console.log('✅ Admin signup successful (or at least attempt finished)');
-      } catch (regError) {
-        console.log('⚠️ Signup attempt failed, but continuing to dashboard anyway');
-      }
 
-      // Automatically login the user (our modified login always succeeds)
+      // Register the admin account; if it fails, show the error and stop
+      await authService.register({
+        employee_id: formData.employee_id.trim(),
+        name: formData.name.trim(),
+        password: formData.password,
+        role: 'admin',
+      });
+      console.log('✅ Admin signup successful');
+
+      // Now log the user in and navigate to admin dashboard
       await login(formData.employee_id.trim(), formData.password);
-      console.log('✅ Auto-login complete, navigating to dashboard...');
-      
+      console.log('✅ Auto-login complete, navigating to admin dashboard...');
+      navigation.reset({ index: 0, routes: [{ name: 'AdminDashboard' as any }] });
+
     } catch (error: any) {
-      console.error('❌ Unexpected error during signup flow:', error);
-      // Even on unexpected error, we try to login with whatever we have
-      await login(formData.employee_id.trim(), formData.password);
+      console.error('❌ Registration error:', error);
+      const message = error?.message || error?.error || 'Registration failed. Please try again.';
+      Alert.alert('Registration Error', message);
     } finally {
       setLoading(false);
     }

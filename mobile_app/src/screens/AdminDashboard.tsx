@@ -12,12 +12,18 @@ import {
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
+import Constants from 'expo-constants';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 const AdminDashboard = () => {
+  const shouldSuppressNetworkError = (error: any) => {
+    const message = typeof error?.message === 'string' ? error.message.toLowerCase() : '';
+    const err = typeof error?.error === 'string' ? error.error.toLowerCase() : '';
+    return Constants.appOwnership === 'expo' && !error?.response && (message.includes('network') || err.includes('network'));
+  };
   const navigation = useNavigation();
-  const [attendance, setAttendance] = useState([]);
+  const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -25,32 +31,23 @@ const AdminDashboard = () => {
 
   useFocusEffect(
     useCallback(() => {
-      fetchAttendance();
+      fetchEmployees();
     }, [])
   );
 
-  const fetchAttendance = async () => {
+  const fetchEmployees = async () => {
     try {
+      console.log('📥 Fetching employees from /admin/employees...');
       setLoading(true);
-      const response = await api.get('/admin/attendance');
-      setAttendance(response.data || []);
+      const response = await api.get('/admin/employees');
+      console.log('✅ Employees fetched:', response);
+      setEmployees(Array.isArray(response) ? response : []);
     } catch (error: any) {
-      console.error('Fetch error, using default values:', error);
-      // Default values for Admin
-      setAttendance([
-        { _id: '1', employee_id: 'EMP001', name: 'John Doe', date: '2025-05-05', status: 'Present', in_time: '08:55 AM', out_time: '06:05 PM' },
-        { _id: '2', employee_id: 'EMP002', name: 'Jane Smith', date: '2025-05-05', status: 'Present', in_time: '09:05 AM', out_time: '06:00 PM' },
-        { _id: '3', employee_id: 'EMP003', name: 'Mike Johnson', date: '2025-05-05', status: 'Late', in_time: '09:45 AM', out_time: '06:15 PM' },
-        { _id: '4', employee_id: 'EMP004', name: 'Sarah Wilson', date: '2025-05-05', status: 'Present', in_time: '08:50 AM', out_time: '05:55 PM' },
-        { _id: '5', employee_id: 'EMP005', name: 'Robert Brown', date: '2025-05-05', status: 'Absent', in_time: '--', out_time: '--' },
-        { _id: '6', employee_id: 'EMP006', name: 'Emily Davis', date: '2025-05-05', status: 'Half Day', in_time: '09:00 AM', out_time: '01:00 PM' },
-        { _id: '7', employee_id: 'EMP001', name: 'John Doe', date: '2025-05-04', status: 'Present', in_time: '09:00 AM', out_time: '06:10 PM' },
-        { _id: '8', employee_id: 'EMP002', name: 'Jane Smith', date: '2025-05-04', status: 'Present', in_time: '09:10 AM', out_time: '06:05 PM' },
-        { _id: '9', employee_id: 'EMP003', name: 'Mike Johnson', date: '2025-05-04', status: 'Present', in_time: '08:55 AM', out_time: '05:50 PM' },
-        { _id: '10', employee_id: 'EMP004', name: 'Sarah Wilson', date: '2025-05-04', status: 'Late', in_time: '10:00 AM', out_time: '06:00 PM' },
-        { _id: '11', employee_id: 'EMP005', name: 'Robert Brown', date: '2025-05-04', status: 'Present', in_time: '08:45 AM', out_time: '05:45 PM' },
-        { _id: '12', employee_id: 'EMP006', name: 'Emily Davis', date: '2025-05-04', status: 'Present', in_time: '09:00 AM', out_time: '06:00 PM' },
-      ] as any);
+      if (!shouldSuppressNetworkError(error)) {
+        console.error('Fetch error:', error);
+      }
+      // No default values - show empty list if fetch fails
+      setEmployees([]);
     } finally {
       setLoading(false);
     }
@@ -58,7 +55,7 @@ const AdminDashboard = () => {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await fetchAttendance();
+    await fetchEmployees();
     setRefreshing(false);
   };
 
@@ -85,14 +82,14 @@ const AdminDashboard = () => {
       });
 
       setUploading(true);
-      await api.post('/admin/upload', formData, {
+      await api.post('/attendance/upload', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       });
 
       Alert.alert('Success', 'Attendance sheet uploaded successfully');
-      fetchAttendance();
+      fetchEmployees();
     } catch (error: any) {
       console.error(error);
       Alert.alert(
@@ -111,7 +108,6 @@ const AdminDashboard = () => {
         text: 'Logout',
         onPress: async () => {
           await logout();
-          navigation.navigate('Home' as any);
         },
       },
     ]);
@@ -127,6 +123,8 @@ const AdminDashboard = () => {
         return '#ff9800';
       case 'Half Day':
         return '#ffc107';
+      case 'Incomplete':
+        return '#9c27b0';
       default:
         return '#999';
     }
@@ -145,34 +143,21 @@ const AdminDashboard = () => {
             <Text style={styles.employeeId}>ID: {item.employee_id}</Text>
           </View>
         </View>
-        <View
-          style={[
-            styles.statusBadge,
-            { backgroundColor: getStatusColor(item.status) },
-          ]}
-        >
-          <Text style={styles.statusText}>{item.status}</Text>
-        </View>
       </View>
       <View style={styles.cardContent}>
-        <View style={styles.dateRow}>
-          <Text style={styles.dateEmoji}>📅</Text>
-          <Text style={styles.date}>{item.date}</Text>
+        <View style={styles.infoRow}>
+          <Text style={styles.infoLabel}>Role:</Text>
+          <Text style={styles.infoValue}>{item.role || 'Employee'}</Text>
         </View>
-        <View style={styles.timeRow}>
-          <View style={styles.timeBlock}>
-            <Text style={styles.timeLabel}>🕒 In Time</Text>
-            <Text style={styles.timeValue}>{item.in_time || '--:--'}</Text>
+        {item.salaryPerDay ? (
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Salary/Day:</Text>
+            <Text style={styles.infoValue}>₹{item.salaryPerDay}</Text>
           </View>
-          <View style={styles.timeDivider} />
-          <View style={styles.timeBlock}>
-            <Text style={styles.timeLabel}>🕒 Out Time</Text>
-            <Text style={styles.timeValue}>{item.out_time || '--:--'}</Text>
-          </View>
-        </View>
+        ) : null}
       </View>
       <View style={styles.cardFooter}>
-        <Text style={styles.viewDetailsText}>Tap to manage details →</Text>
+        <Text style={styles.viewDetailsText}>Tap to manage employee →</Text>
       </View>
     </TouchableOpacity>
   );
@@ -197,10 +182,10 @@ const AdminDashboard = () => {
       <View style={styles.actionSection}>
         <TouchableOpacity
           style={[styles.actionButton, styles.manageButton]}
-          onPress={() => fetchAttendance()}
+          onPress={() => navigation.navigate('MarkAttendance' as any)}
         >
-          <Text style={styles.actionButtonIcon}>📋</Text>
-          <Text style={styles.actionButtonText}>Manage Attendance</Text>
+          <Text style={styles.actionButtonIcon}>📝</Text>
+          <Text style={styles.actionButtonText}>Mark Attendance</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -222,36 +207,36 @@ const AdminDashboard = () => {
       {/* Summary Section */}
       <View style={styles.summarySection}>
         <View style={styles.summaryCard}>
-          <Text style={styles.summaryValue}>{attendance.length}</Text>
-          <Text style={styles.summaryLabel}>Total Records</Text>
+          <Text style={styles.summaryValue}>{employees.length}</Text>
+          <Text style={styles.summaryLabel}>Total Employees</Text>
+        </View>
+        <View style={[styles.summaryCard, { backgroundColor: '#f3e5f5' }]}>
+          <Text style={[styles.summaryValue, { color: '#6a1b9a' }]}>
+            {employees.filter((e: any) => e.role === 'admin').length}
+          </Text>
+          <Text style={styles.summaryLabel}>Admins</Text>
         </View>
         <View style={[styles.summaryCard, { backgroundColor: '#e8f5e9' }]}>
           <Text style={[styles.summaryValue, { color: '#2e7d32' }]}>
-            {attendance.filter((a: any) => a.status === 'Present').length}
+            {employees.filter((e: any) => e.role === 'employee').length}
           </Text>
-          <Text style={styles.summaryLabel}>Present Today</Text>
-        </View>
-        <View style={[styles.summaryCard, { backgroundColor: '#fff3e0' }]}>
-          <Text style={[styles.summaryValue, { color: '#ef6c00' }]}>
-            {attendance.filter((a: any) => a.status === 'Late' || a.status === 'Half Day').length}
-          </Text>
-          <Text style={styles.summaryLabel}>Exceptions</Text>
+          <Text style={styles.summaryLabel}>Employees</Text>
         </View>
       </View>
 
       {/* Title */}
-      <Text style={styles.title}>📊 Attendance Records</Text>
+      <Text style={styles.title}>👥 Registered Employees</Text>
 
       {/* Content */}
       {loading && !refreshing ? (
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color="#1a73e8" />
-          <Text style={styles.loadingText}>Loading records...</Text>
+          <Text style={styles.loadingText}>Loading employees...</Text>
         </View>
-      ) : attendance.length > 0 ? (
+      ) : employees.length > 0 ? (
         <FlatList
-          data={attendance}
-          keyExtractor={(item: any) => item._id || item.date}
+          data={employees}
+          keyExtractor={(item: any) => item._id || item.employee_id}
           renderItem={renderItem}
           contentContainerStyle={styles.listContent}
           refreshControl={
@@ -264,7 +249,7 @@ const AdminDashboard = () => {
         />
       ) : (
         <View style={styles.centerContainer}>
-          <Text style={styles.emptyText}>📭 No attendance records yet</Text>
+          <Text style={styles.emptyText}>📭 No employees registered yet</Text>
         </View>
       )}
     </View>
@@ -482,6 +467,22 @@ const styles = StyleSheet.create({
   viewDetailsText: {
     fontSize: 12,
     color: '#1a73e8',
+    fontWeight: '600',
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  infoLabel: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '600',
+  },
+  infoValue: {
+    fontSize: 13,
+    color: '#1a1a1a',
     fontWeight: '600',
   },
   centerContainer: {

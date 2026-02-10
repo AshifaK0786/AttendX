@@ -1,6 +1,7 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authService } from '../services/authService';
+import { setAuthToken } from '../services/api';
 
 interface User {
   id: string;
@@ -34,6 +35,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (storageUser && storageToken) {
           setUser(JSON.parse(storageUser));
           setToken(storageToken);
+          setAuthToken(storageToken);
+          console.log('✅ Auth data loaded from storage, token set in API');
         }
       } catch (error) {
         console.error('Error loading auth data:', error);
@@ -46,54 +49,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (employee_id: string, password: string) => {
     try {
-      console.log('📱 AuthContext: Calling login service...');
+      console.log('🔐 Attempting login...');
       const response = await authService.login(employee_id, password);
-      console.log('📱 AuthContext: Login response received:', response);
+      console.log('📦 Login response:', response);
+      
       const { user: userData, token: authToken } = response;
+      console.log('👤 User data:', userData);
+      console.log('🔑 Auth token:', authToken ? 'present' : 'missing');
 
-      console.log('📱 AuthContext: Setting user and token...');
       setUser(userData);
       setToken(authToken);
+      setAuthToken(authToken);
+      console.log('🔐 Token set in API interceptor');
 
-      console.log('📱 AuthContext: Saving to AsyncStorage...');
+      console.log('💾 Storing to AsyncStorage...');
       await AsyncStorage.setItem('user', JSON.stringify(userData));
       await AsyncStorage.setItem('token', authToken);
-      console.log('✅ AuthContext: Login complete!');
+      console.log('✅ Auth data stored successfully');
     } catch (error: any) {
-      console.error('❌ AuthContext: Login error, bypassing for development:', error);
-      
-      // Bypass: Create a fake user based on input
-      const isAdmin = employee_id.toLowerCase().includes('admin') || 
-                     password.toLowerCase().includes('admin') ||
-                     employee_id.toUpperCase().startsWith('ADM');
-      
-      const fakeUser: User = {
-        id: 'fake-' + Date.now(),
-        employee_id: employee_id,
-        name: employee_id.split(/[0-9]/)[0] || 'Employee User',
-        role: isAdmin ? 'admin' : 'employee',
-      };
-      
-      if (isAdmin && fakeUser.name === 'Employee User') {
-        fakeUser.name = 'Admin User';
-      }
-
-      const fakeToken = 'fake-jwt-token-' + Date.now();
-
-      setUser(fakeUser);
-      setToken(fakeToken);
-      await AsyncStorage.setItem('user', JSON.stringify(fakeUser));
-      await AsyncStorage.setItem('token', fakeToken);
-      console.log('✅ AuthContext: Bypass Login complete!');
+      console.error('❌ Login error:', error);
+      const message = error?.message || error?.error || 'Login failed. Please try again.';
+      throw new Error(message);
     }
   };
 
   const logout = async () => {
     try {
+      setAuthToken(null);
+      console.log('🔐 Token cleared from API interceptor');
       await AsyncStorage.removeItem('user');
       await AsyncStorage.removeItem('token');
       setUser(null);
       setToken(null);
+      console.log('✅ Logout complete');
     } catch (error) {
       console.error('Error during logout:', error);
     }

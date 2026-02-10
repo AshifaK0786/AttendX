@@ -21,7 +21,8 @@
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF"
       },
-      "usesCleartextTraffic": true
+      "usesCleartextTraffic": true,
+      "package": "com.anonymous.employeeattendance"
     }
   }
 }

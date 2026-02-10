@@ -9,12 +9,26 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, NavigationProp } from '@react-navigation/native';
+import Constants from 'expo-constants';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
+type EmployeeStackParamList = {
+  EmployeeDashboard: undefined;
+  SalarySlip: undefined;
+  InsurancePolicies: undefined;
+};
+
+type EmployeeDashboardNavigationProp = NavigationProp<EmployeeStackParamList>;
+
 const EmployeeDashboard = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<EmployeeDashboardNavigationProp>();
+  const shouldSuppressNetworkError = (error: any) => {
+    const message = typeof error?.message === 'string' ? error.message.toLowerCase() : '';
+    const err = typeof error?.error === 'string' ? error.error.toLowerCase() : '';
+    return Constants.appOwnership === 'expo' && !error?.response && (message.includes('network') || err.includes('network'));
+  };
   const [attendance, setAttendance] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -28,9 +42,11 @@ const EmployeeDashboard = () => {
     try {
       setLoading(true);
       const response = await api.get('/attendance/my-attendance');
-      setAttendance(response.data || []);
+      setAttendance(Array.isArray(response) ? response : []);
     } catch (error: any) {
-      console.error('Fetch error, using default values:', error);
+      if (!shouldSuppressNetworkError(error)) {
+        console.error('Fetch error, using default values:', error);
+      }
       // Default values for Employee
       setAttendance([
         { _id: '1', date: '2025-05-05', status: 'Present', in_time: '08:58 AM', out_time: '06:02 PM' },
@@ -62,7 +78,6 @@ const EmployeeDashboard = () => {
         text: 'Logout',
         onPress: async () => {
           await logout();
-          navigation.navigate('Home' as any);
         },
       },
     ]);
@@ -79,6 +94,8 @@ const EmployeeDashboard = () => {
           return '#ff9800';
         case 'Half Day':
           return '#ffc107';
+        case 'Incomplete':
+          return '#9c27b0';
         default:
           return '#999';
       }
@@ -153,6 +170,24 @@ const EmployeeDashboard = () => {
           </Text>
           <Text style={styles.summaryLabel}>Attendance %</Text>
         </View>
+      </View>
+
+      {/* Quick Actions */}
+      <View style={styles.quickActionsSection}>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={() => navigation.navigate('SalarySlip')}
+        >
+          <Text style={styles.actionIcon}>💰</Text>
+          <Text style={styles.actionLabel}>Salary Slip</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={() => navigation.navigate('InsurancePolicies')}
+        >
+          <Text style={styles.actionIcon}>🛡️</Text>
+          <Text style={styles.actionLabel}>Insurance</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Title */}
@@ -251,6 +286,35 @@ const styles = StyleSheet.create({
     marginTop: 5,
     textAlign: 'center',
     fontWeight: '500',
+  },
+  quickActionsSection: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    marginTop: 15,
+    gap: 10,
+  },
+  actionButton: {
+    flex: 1,
+    backgroundColor: '#fff',
+    padding: 15,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  actionIcon: {
+    fontSize: 24,
+    marginBottom: 5,
+  },
+  actionLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#1a1a1a',
   },
   title: {
     fontSize: 18,

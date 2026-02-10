@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import Constants from 'expo-constants';
 import api from '../services/api';
 
 const { width } = Dimensions.get('window');
@@ -19,6 +20,12 @@ export default function HomeScreen() {
   const [employees, setEmployees] = useState<any[]>([]);
   const [employeeCount, setEmployeeCount] = useState(0);
   const [loading, setLoading] = useState(true);
+
+  const shouldSuppressNetworkError = (error: any) => {
+    const message = typeof error?.message === 'string' ? error.message.toLowerCase() : '';
+    const err = typeof error?.error === 'string' ? error.error.toLowerCase() : '';
+    return Constants.appOwnership === 'expo' && !error?.response && (message.includes('network') || err.includes('network'));
+  };
 
   useEffect(() => {
     fetchEmployeeData();
@@ -35,7 +42,9 @@ export default function HomeScreen() {
       // Show only first 6 employees or fewer
       setEmployees(employeeList.slice(0, 6));
     } catch (error) {
-      console.error('Failed to fetch employees:', error);
+      if (!shouldSuppressNetworkError(error)) {
+        console.error('Failed to fetch employees:', error);
+      }
       // Show placeholder dummy data if no data yet
       setEmployees([
         { _id: '1', name: 'John Doe', employee_id: 'EMP001' },

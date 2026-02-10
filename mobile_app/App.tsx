@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
-import { createStackNavigator } from '@react-navigation/stack';
+import { createStackNavigator, StackScreenProps } from '@react-navigation/stack';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import HomeScreen from './src/screens/HomeScreen';
 import LoginScreen from './src/screens/LoginScreen';
@@ -10,8 +10,28 @@ import EmployeeSignUpScreen from './src/screens/EmployeeSignUpScreen';
 import EmployeeDashboard from './src/screens/EmployeeDashboard';
 import AdminDashboard from './src/screens/AdminDashboard';
 import EmployeeDetails from './src/screens/EmployeeDetails';
+import SalarySlipScreen from './src/screens/SalarySlipScreen';
+import InsurancePoliciesScreen from './src/screens/InsurancePoliciesScreen';
+import MarkAttendanceScreen from './src/screens/MarkAttendanceScreen';
+import AdminSalaryConfigScreen from './src/screens/AdminSalaryConfigScreen';
+import AdminInsuranceAssignScreen from './src/screens/AdminInsuranceAssignScreen';
 
-const Stack = createStackNavigator();
+type RootStackParamList = {
+  Home: undefined;
+  Login: undefined;
+  AdminSignUp: undefined;
+  EmployeeSignUp: undefined;
+  AdminDashboard: undefined;
+  EmployeeDashboard: undefined;
+  EmployeeDetails: { id: string };
+  SalarySlip: undefined;
+  InsurancePolicies: undefined;
+  MarkAttendance: undefined;
+  AdminSalaryConfig: { id: string };
+  AdminInsuranceAssign: { id: string };
+};
+
+const Stack = createStackNavigator<RootStackParamList>();
 
 const Navigation = () => {
   const { user, loading } = useAuth();
@@ -26,7 +46,7 @@ const Navigation = () => {
 
   return (
     <NavigationContainer>
-      <Stack.Navigator>
+      <Stack.Navigator id={user ? (user.role === 'admin' ? 'AdminStack' : 'EmployeeStack') : 'AuthStack'}>
         {!user ? (
           <>
             <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
@@ -58,13 +78,40 @@ const Navigation = () => {
               component={EmployeeDetails}
               options={{ title: 'Employee Details', headerShown: false }}
             />
+            <Stack.Screen
+              name="MarkAttendance"
+              component={MarkAttendanceScreen}
+              options={{ title: 'Mark Attendance', headerShown: false }}
+            />
+            <Stack.Screen
+              name="AdminSalaryConfig"
+              component={AdminSalaryConfigScreen}
+              options={{ title: 'Configure Salary', headerShown: false }}
+            />
+            <Stack.Screen
+              name="AdminInsuranceAssign"
+              component={AdminInsuranceAssignScreen}
+              options={{ title: 'Assign Insurance', headerShown: false }}
+            />
           </>
         ) : (
-          <Stack.Screen
-            name="EmployeeDashboard"
-            component={EmployeeDashboard}
-            options={{ title: 'Employee Dashboard', headerShown: false }}
-          />
+          <>
+            <Stack.Screen
+              name="EmployeeDashboard"
+              component={EmployeeDashboard}
+              options={{ title: 'Employee Dashboard', headerShown: false }}
+            />
+            <Stack.Screen
+              name="SalarySlip"
+              component={SalarySlipScreen}
+              options={{ title: 'Salary Slip', headerShown: false }}
+            />
+            <Stack.Screen
+              name="InsurancePolicies"
+              component={InsurancePoliciesScreen}
+              options={{ title: 'Insurance Policies', headerShown: false }}
+            />
+          </>
         )}
       </Stack.Navigator>
     </NavigationContainer>
